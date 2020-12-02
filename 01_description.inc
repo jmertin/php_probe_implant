@@ -40,7 +40,7 @@ services:
 A short explanation on the sections to be added.   
 
 ### php-probe-vol   
-In your service definitions section, creat an entry for the **php-probe-vol**.
+In your service definitions section, create an entry for the **php-probe-vol**.
 it will hold all files required to implant the php probe into the existing PHP installation during container/pod creation.   
 This volume that was built by you should have the exact same version number as your APMIA agent it will connect to!   
 
@@ -164,7 +164,6 @@ pcm-rh-prod        |
 pcm-rh-prod        |    1) To modify default CA APM PHP Probe agent settings update file at PHP INI directory   
 pcm-rh-prod        |    2) Restart your web server or your PHP-FPM process to see performance metrics.
 pcm-rh-prod        |      
-pcm-rh-prod        | chown: invalid user: 'www-data.www-data'
 pcm-rh-prod        |  * Handing over to real ENTRYPOINT: /run.sh
 ```
 
