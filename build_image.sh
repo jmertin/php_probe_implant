@@ -34,36 +34,41 @@ echo
 echo -n ">>> Download latest PHP Agent archive [y/n]?: "
 read DownLoad
 
+# Clean up build env.
+rm -rf apmia
+
 if [ "$DownLoad" = "y" ]
 then
     # Removing all instance of files.
     rm -f PHP-apmia-*.tar
-
+    
     ## Download repository
-    wget --content-disposition $PHP_FILE
+    wget --no-check-certificate --content-disposition $PHP_FILE
     if [ $? == 0 ]
     then
-	tar xf PHP-apmia-*.tar apmia/manifest.txt
+	tar xf PHP-apmia-*.tar apmia/manifest.txt apmia/probe apmia/installer.sh
 	PHPMONITVER=`grep php-monitor apmia/manifest.txt | cut -d ':' -f 2`
 	TMP=`ls PHP-apmia-*.tar`
-	FILENAME=`ls PHP-apmia-*.tar`
     else
 	echo "*** FATAL: PHP APMIA Agent download failed. Exiting."
 	exit 1
     fi
 else
-    tar xf PHP-apmia-*.tar apmia/manifest.txt
+    tar xf PHP-apmia-*.tar apmia/manifest.txt apmia/probe apmia/installer.sh
     PHPMONITVER=`grep php-monitor apmia/manifest.txt | cut -d ':' -f 2`
     TMP=`ls PHP-apmia-*.tar`
-    FILENAME=`ls PHP-apmia-*.tar`   
 fi
+
+FILENAME="PHP-Probe-${PHPMONITVER}.tar.gz"
+tar zcf $FILENAME ./apmia
 
 echo ">>> Found PHP Monitor $PHPMONITVER!"
 cat Dockerfile.tpl | sed -e '/%%EXTCOPY%%/d' > Dockerfile
 
 
+
 echo
-echo -n ">>> Build APMIA/PHP image [y/n]?: "
+echo -n ">>> Build PHP probe volume image [y/n]?: "
 read Build
 
 if [ "$Build" = "y" ]
@@ -73,17 +78,18 @@ if [ "$Build" = "y" ]
        echo "*** If you want to apply OS Update, don't use the cache."
        echo -n ">>> Use cache for build [y/n]?: "
        read Cache
-       
+
+       PREFIX=`hostname -s`
+
        if [ "$Cache" == "y" ]
        then
-           ### Build PCM
-           docker build -t mertin/$FileBase --build-arg PHP_EXTENSION_VER=$PHPMONITVER --build-arg PHP_EXTENSION_FILE=$FILENAME .
+           ### Build PHP Probe volume
+           docker build -t bcp/$FileBase --build-arg PHP_EXTENSION_VER=$PHPMONITVER --build-arg PHP_EXTENSION_FILE=$FILENAME .
        else
-           ### Build PCM
-           docker build --no-cache -t mertin/$FileBase --build-arg PHP_EXTENSION_VER=$PHPMONITVER --build-arg PHP_EXTENSION_FILE=$FILENAME .
+           ### Build PHP Probe volume
+           docker build --no-cache -t bcp/$FileBase --build-arg PHP_EXTENSION_VER=$PHPMONITVER --build-arg PHP_EXTENSION_FILE=$FILENAME .
        fi
        # Tag the built image
-       echo "*** Tagging image to mertin/$FileBase:$PHPMONITVER" 
-       docker tag mertin/$FileBase:latest mertin/$FileBase:$PHPMONITVER
-       
+       echo "*** Tagging image to bcp/$FileBase:$PHPMONITVER" 
+       docker tag bcp/$FileBase:latest bcp/$FileBase:$PHPMONITVER
 fi
