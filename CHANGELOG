@@ -1,2 +1,8 @@
+2020-12-03 a9da44a Joerg Mertin Updated documentation. Added kubernetes example/instructions
+2020-12-03 3cf5955 Joerg Mertin Added docker-registry support
+2020-12-03 23bca45 Joerg Mertin Added support for automatic deployment to docker registry if configured
+2020-12-03 6dae17f Joerg Mertin Adapted Dockerfile to kubernetes initContainer deployment style
+2020-12-03 3c0a334 Joerg Mertin Adapted run script to kubernetes initContainer deployment scheme.
+2020-12-02 7520142 Joerg Mertin Updated documentation
 2020-12-02 e9c9c1a Joerg Mertin First version of php-probe-implant.
 2020-12-02 d3ea7e3 Joerg Mertin Initial php_probe_ext_volume git commit
