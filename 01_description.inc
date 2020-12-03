@@ -14,20 +14,19 @@ Note, to implant the probe, the image first needs to be built. Please see the bu
 
 It has the advantage that one can deploy the probe also in environment where one uses more than 1 replica (concurrent applications).
 
-4 changes to the original yaml deployment file will be required.
+3 sections to the original yaml deployment file are required
 
 1. **initContainers**: provides the snippet on where to download the php_probe_implant image and what to execute. We will retain the /opt/apmia volume to be the mountpoath for the probe.
 
-2. **env**: To configure the probe deployment at deployment-time, we need to
+2. **containers**:   
+   - **env**: To configure the probe deployment at deployment-time, we need to
 set the appropriate variables. See the "Available options" section for
 all.
-Note: absolutely important is the ENTRYPOINT of the original application. If that one is not defined, the probe-installer cannot hand over control of the pod to the actual application.
+Note: absolutely important is the ENTRYPOINT of the original application. If that one is not defined, the probe-installer cannot hand over control of the pod to the actual application.   
+   - **command**: The actual application image needs to use the entrypoint command provided by the php-probe image in its **new** location (note the change in the path compared to the path in the initContainer definition).
+   - **volumeMounts**: We need to use the same path as the initContainers declaration. Here /opt/apmia
 
-3. **containers**:   
-   - command: The actual application image needs to use the entrypoint command provided by the php-probe image in its **new** location (note the change in the path compared to the path in the initContainer definition).
-   - volumeMounts: We need to use the same path as the initContainers declaration. Here /opt/apmia
-
-4. **volumes**: Is just the glue between the 2 volumeMounts
+3. **volumes**: Is just the glue between the 2 volumeMounts
 declarations perviously done. Means, as long as one of the 2 pods is
 still active, that directory remains.
 
