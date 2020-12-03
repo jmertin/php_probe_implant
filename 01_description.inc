@@ -1,40 +1,156 @@
 ## Image description
 
 This image build kit creates an image containing the **PHP remote
-agent probe** to be implanted into a PHP application container at
-start-time. The **implant** does not require the PHP application image
-to be modified upfront. The Entrypoint subjugation method is being used.
+agent probe** to be implanted into a PHP application pod at
+start-time.   
+The **implant** process does not require the PHP application image
+to be modified upfront.   
+The Entrypoint subjugation method is being used.
 
-## Implant the probe - docker compose method
+## Implant the probe - kubernetes
 
-Note, to implant the probe, the image first needs to be built. Please see the next section for details.
-The following explanation will base itself on the below docker-compose.yml snippet.   
+For kubernetes, the initContainers method will be used.   
+Note, to implant the probe, the image first needs to be built. Please see the build section for details.
+
+It has the advantage that one can deploy the probe also in environment where one uses more than 1 replica (concurrent applications).
+
+4 changes to the original yaml deployment file will be required.
+
+1. **initContainers**: provides the snippet on where to download the php_probe_implant image and what to execute. We will retain the /opt/apmia volume to be the mountpoath for the probe.
+
+2. **env**: To configure the probe deployment at deployment-time, we need to
+set the appropriate variables. See the "Available options" section for
+all.
+Note: absolutely important is the ENTRYPOINT of the original application. If that one is not defined, the probe-installer cannot hand over control of the pod to the actual application.
+
+3. **containers**:   
+   - command: The actual application image needs to use the entrypoint command provided by the php-probe image in its **new** location (note the change in the path compared to the path in the initContainer definition).
+   - volumeMounts: We need to use the same path as the initContainers declaration. Here /opt/apmia
+
+4. **volumes**: Is just the glue between the 2 volumeMounts
+declarations perviously done. Means, as long as one of the 2 pods is
+still active, that directory remains.
+
+
 ```
-services:
-  # Existing application
-  app-rh-prod:
-    image: calypso/pcm_rh:prod
-    container_name: app-rh-prod
-    entrypoint: /opt/apmia/run.sh
-    depends_on:
-      - php-probe-vol
-    environment:
-      - PHP_DEPLOY=true
-      - PHP_APPNAME=pcm
-      - PHP_AGENT_DISPLAYED_HOSTNAME=calypso
-      - PHP_LOGDIR=/var/log
-      - PHP_IAHOST=apmia-php-vol
-      - PHP_IAPORT=5005
-      - ENTRYPOINT=/run.sh
-    volumes_from:
-      - php-probe-vol:rw
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rainloop
+  namespace: rainloop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rainloop-app
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: rainloop-app
+        deployment: prod
+    spec:
+ >    initContainers:
+ >    - name: php-probe
+ >      image: bcp/php_probe_implant:20.9.0.18
+ >      imagePullPolicy: ""
+ >      command: ["/opt/data/run.sh"]
+ >      volumeMounts:
+ >      - mountPath: /opt/apmia
+ >        name: php-probe
+      containers:
+      - env:
+>       - name: PHP_DEPLOY
+>         value: "true"
+>       - name: PHP_APPNAME
+>         value: rainloop-app
+>       - name: PHP_AGENT_DISPLAYED_HOSTNAME
+>         value: rainloop
+>       - name: PHP_IAHOST
+>         value: apmia-agent-host.domain.org
+>       - name: PHP_IAPORT
+>         value: "5005"
+>       - name: PHP_LOGDIR
+>         value: /var/log/wily
+>       - name: PHP_WWWMODE
+>         value: "www-data"
+>       - name: ENTRYPOINT
+>         value: "/run.sh"
+        image: bcp/rainloop:prod
+>       command: ["/opt/apmia/run.sh"]
+        imagePullPolicy: "Always"
+        name: rainloop
+        resources: {}
+        volumeMounts:
+>       - mountPath: /opt/apmia
+>         name: php-probe
+        - mountPath: /rainloop/data
+          name: rainloop-data-nfs-volume
+      restartPolicy: Always
+      serviceAccountName: rainloop-serviceaccount
+      volumes:
+>     - name: php-probe
+      - name: rainloop-data-nfs-volume
+        persistentVolumeClaim:
+          claimName: rainloop-data-nfs-claim
+status: {}
+```
+Note: The mountPath needs to be in both VolumeMounts sections
+(initContainers and containers). It will be required only once in the
+"volumes" section.
 
-  # Volume providing the PHP Probe to be implanted
-  php-probe-vol:
-    image: bcp/php_probe_implant:20.9.0.18
-    container_name: php-probe-vol
+
+
+
+## Implant the probe - docker-compose
+
+Note, to implant the probe, the image first needs to be built. Please see the build section for details.
+The following explanation will base itself on the below docker-compose.yml snippet.   
+
+The example below shows how to add the php-probe to rainloop, a webmailer based on php.   
+The original application is loaded per the below snippet in docker-compose:   
+```
+  rainloop:
+    image: nas.solsys.org:5443/mertin/rainloop:prod
+    container_name: rainloop
+    restart: always
     volumes:
-      - /opt/apmia
+      - /home/prodadm/docker/rainloop/data:/rainloop/data
+```
+
+To implant the probe, we will modify that definition and add one passive volume as per the exmple below:
+
+```
+  # rainloop web-mailer
+  rainloop:
+    image: bcp/rainloop:prod
+    container_name: rainloop
+>   entrypoint: /opt/apmia/run.sh
+>   depends_on:
+>     - php-probe-vol
+>   environment:
+>     - PHP_DEPLOY=true
+>     - PHP_APPNAME=rainloop-app
+>     - PHP_AGENT_DISPLAYED_HOSTNAME=rainloop
+>     - PHP_LOGDIR=/var/log
+>     - PHP_IAHOST=apmia-agent-host.domain.org
+>     - PHP_IAPORT=5005
+>     - PHP_WWWMODE=www-data
+>     - ENTRYPOINT=/run.sh
+    restart: always
+    volumes:
+      - /home/prodadm/docker/rainloop/data:/rainloop/data
+>   volumes_from:
+>     - php-probe-vol:rw   
+      
+> # Volume providing the PHP Probe to be implanted
+> php-probe-vol:
+>   image: bcp/php_probe_implant:20.9.0.18
+>   container_name: php-probe-vol
+>   volumes:
+>     - /opt/apmia
 ```
 
 A short explanation on the sections to be added.   
@@ -45,7 +161,7 @@ it will hold all files required to implant the php probe into the existing PHP i
 This volume that was built by you should have the exact same version number as your APMIA agent it will connect to!   
 
 ### app-rh-prod   
-in this example, we assume the application we want to implant the *PHP Probe* into is the app-rh-prod and already running.
+in this example, we assume the application we want to implant the *PHP Probe* into, is defined in the "rainloop" service entry.
 Add the following sections:   
 ``` 
 entrypoint: /opt/apmia/run.sh
@@ -65,13 +181,68 @@ Very important is th
 ```
     environment:
       - PHP_DEPLOY=true
-      - PHP_APPNAME=pcm
-      - PHP_AGENT_DISPLAYED_HOSTNAME=calypso
+      - PHP_APPNAME=rainloop-app
+      - PHP_AGENT_DISPLAYED_HOSTNAME=rainloop
       - PHP_LOGDIR=/var/log
+      - PHP_WWWMODE=www-data
       - PHP_IAHOST=apmia-php-vol
       - PHP_IAPORT=5005
       - ENTRYPOINT=/run.sh
 ```
+
+Once all is configured, when launched with "docker-compose up -d",
+we can check the logs with "docker-compose logs -f <app-name>"
+
+An example log would look like below:
+```
+$ docker-compose logs pcm-rh-prod
+Attaching to pcm-rh-prod
+rainloop        |  * Implanting PHP probe
+rainloop        | 
+rainloop        |  * Calling php-probe installer with the following options:
+rainloop        |  => -appname "rainloop-app" -agenthostname "rainloop" -iahost "apmia-php-vol"     -logdir /var/log
+rainloop        | 
+rainloop        | 
+rainloop        |   Installing CA APM PHP Probe Agent...
+rainloop        | 
+rainloop        |   Looking for PHP Installations on this machine...
+rainloop        | 
+rainloop        |   Installer found following PHP installations on this machine
+rainloop        | 
+rainloop        |    1) /usr/bin
+rainloop        |    2) /bin
+rainloop        | 
+rainloop        |   Installing CA APM PHP Probe Agent at all discovered PHP installation(s)...
+rainloop        | 
+rainloop        | 
+rainloop        | 
+rainloop        |   Installation Overview:
+rainloop        | 
+rainloop        | 1) PHP Root : /usr/bin/php
+rainloop        |    PHP Version : 7.2.34
+rainloop        |    PHP Extensions directory : /usr/lib64/php/modules
+rainloop        |    PHP Zend Thread Safety : Disabled
+rainloop        |    PHP ini directory : /etc/php.d
+rainloop        |    Installation Status : Success
+rainloop        | 
+rainloop        | 
+rainloop        | 2) PHP Root : /bin/php
+rainloop        |    PHP Version : 7.2.34
+rainloop        |    PHP Extensions directory : /usr/lib64/php/modules
+rainloop        |    PHP Zend Thread Safety : Disabled
+rainloop        |    PHP ini directory : /etc/php.d
+rainloop        |    Installation Status : Success
+rainloop        | 
+rainloop        | 
+rainloop        |    CA APM PHP Probe Agent is successfully installed on your machine.   
+rainloop        |    
+rainloop        |    1) To modify default CA APM PHP Probe agent settings update file at PHP INI directory   
+rainloop        |    2) Restart your web server or your PHP-FPM process to see performance metrics.
+rainloop        |      
+rainloop        |  * Handing over to real ENTRYPOINT: /run.sh
+```
+
+## Valid options
 
 The following options can be added/set. By default, one should only
 set PHP_APPNAME, PHP_AGENT_DISPLAYED_HOSTNAME and PHP_IAHOST. The
@@ -96,8 +267,12 @@ this param can be ignored. Defaults to localhost if not set
 - PHP_EXT: PHP modules directory
 - PHP_INI: PHP ini directory
 
-- PHP_LOGDIR: PHP probe agent logs directory. WARNING: As this is a
-  shared VOLUME, do not set the log directory to be in it!
+- PHP_LOGDIR: PHP probe agent logs directory.
+
+- PHP_WWWMODE: For the wily-probe! By default, the php-engine will only be able to write
+  out logs if it has write-access. Identify the user the php-engine
+  runs as, and define it here. This will make the script create the
+  directory and apply the ownership accordingly.
 
 - PHP_DEPLOY[Mandatory] [true:false]: Trigger to install the **PHP
   Remote Agent Probe**.
@@ -117,57 +292,6 @@ USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
 root           1  0.0  0.0   4624   808 ?        Ss   14:16   0:00 bin/bash ./APMIACtrl.sh force_start
 ```
 
-Once all is configured, when launched with "docker-compose up -d" one
-can see in the logs how the implant process was executed.
-```
-$ docker-compose logs pcm-rh-prod
-Attaching to pcm-rh-prod
-pcm-rh-prod        |  * Implanting PHP probe
-pcm-rh-prod        | 
-pcm-rh-prod        |  * Calling php-probe installer with the following options:
-pcm-rh-prod        |  => -appname "pcm" -agenthostname "calypso" -iahost "apmia-php-vol"     -logdir /var/log
-pcm-rh-prod        | 
-pcm-rh-prod        | 
-pcm-rh-prod        |   Installing CA APM PHP Probe Agent...
-pcm-rh-prod        | 
-pcm-rh-prod        |   Looking for PHP Installations on this machine...
-pcm-rh-prod        | 
-pcm-rh-prod        |   Installer found following PHP installations on this machine
-pcm-rh-prod        | 
-pcm-rh-prod        |    1) /usr/bin
-pcm-rh-prod        |    2) /bin
-pcm-rh-prod        | 
-pcm-rh-prod        |   Installing CA APM PHP Probe Agent at all discovered PHP installation(s)...
-pcm-rh-prod        | 
-pcm-rh-prod        | 
-pcm-rh-prod        | 
-pcm-rh-prod        |   Installation Overview:
-pcm-rh-prod        | 
-pcm-rh-prod        | 1) PHP Root : /usr/bin/php
-pcm-rh-prod        |    PHP Version : 7.2.34
-pcm-rh-prod        |    PHP Extensions directory : /usr/lib64/php/modules
-pcm-rh-prod        |    PHP Zend Thread Safety : Disabled
-pcm-rh-prod        |    PHP ini directory : /etc/php.d
-pcm-rh-prod        |    Installation Status : Success
-pcm-rh-prod        | 
-pcm-rh-prod        | 
-pcm-rh-prod        | 2) PHP Root : /bin/php
-pcm-rh-prod        |    PHP Version : 7.2.34
-pcm-rh-prod        |    PHP Extensions directory : /usr/lib64/php/modules
-pcm-rh-prod        |    PHP Zend Thread Safety : Disabled
-pcm-rh-prod        |    PHP ini directory : /etc/php.d
-pcm-rh-prod        |    Installation Status : Success
-pcm-rh-prod        | 
-pcm-rh-prod        | 
-pcm-rh-prod        |    CA APM PHP Probe Agent is successfully installed on your machine.   
-pcm-rh-prod        |    
-pcm-rh-prod        |    1) To modify default CA APM PHP Probe agent settings update file at PHP INI directory   
-pcm-rh-prod        |    2) Restart your web server or your PHP-FPM process to see performance metrics.
-pcm-rh-prod        |      
-pcm-rh-prod        |  * Handing over to real ENTRYPOINT: /run.sh
-```
-
-
 ## Image creation
 
 Due to legal restrictions, the probe itself cannot be distributed through a docker image.
@@ -178,7 +302,7 @@ Launch once the **build_image.sh** script. it will create a configuration file t
 $ ./build_image.sh 
 
 *** ERROR: Missing build_image.cfg configuration file (normal on first run)!
-=============================================================================================================
+=========================================================================================
 # Go to the Agent Download Section, select to download the PHP Agent and open the "Command line Download".
 # and put it all in the below link - incl. the security Token. Exclude the wget command!
 PHP_FILE='<Insert here the download CLI URL for the PHP APMIA Agent>'
