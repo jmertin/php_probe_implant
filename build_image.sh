@@ -92,4 +92,14 @@ if [ "$Build" = "y" ]
        # Tag the built image
        echo "*** Tagging image to bcp/$FileBase:$PHPMONITVER" 
        docker tag bcp/$FileBase:latest bcp/$FileBase:$PHPMONITVER
+
+       if [ -n DOCKER_REGISTRY ]
+       then
+	   echo "*** Tagging image to ${DOCKER_REGISTRY}/bcp/$FileBase:$PHPMONITVER" 
+	   docker tag bcp/$FileBase:latest ${DOCKER_REGISTRY}/bcp/$FileBase:$PHPMONITVER
+	   echo "*** Pushing image to registry" 
+	   docker push ${DOCKER_REGISTRY}/bcp/$FileBase:$PHPMONITVER
+       fi
+
+       
 fi
