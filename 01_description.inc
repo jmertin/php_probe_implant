@@ -21,7 +21,7 @@ It has the advantage that one can deploy the probe also in environment where one
 2. **containers**:   
    - **env**: To configure the probe deployment at deployment-time, we need to
 set the appropriate variables. See the "Available options" section for
-all.
+all.   
 Note: absolutely important is the ENTRYPOINT of the original application. If that one is not defined, the probe-installer cannot hand over control of the pod to the actual application.   
    - **command**: The actual application image needs to use the entrypoint command provided by the php-probe image in its **new** location (note the change in the path compared to the path in the initContainer definition).
    - **volumeMounts**: We need to use the same path as the initContainers declaration. Here /opt/apmia
@@ -159,7 +159,7 @@ In your service definitions section, create an entry for the **php-probe-vol**.
 it will hold all files required to implant the php probe into the existing PHP installation during container/pod creation.   
 This volume that was built by you should have the exact same version number as your APMIA agent it will connect to!   
 
-### app-rh-prod   
+### rainloop   
 in this example, we assume the application we want to implant the *PHP Probe* into, is defined in the "rainloop" service entry.
 Add the following sections:   
 ``` 
