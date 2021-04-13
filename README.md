@@ -1,4 +1,4 @@
-# php_probe_implant 1.0-2 by J. Mertin -- joerg.mertin@broadcom.com
+# php_probe_implant 1.0-3 by J. Mertin -- joerg.mertin@broadcom.com
 Purpose: Implants the php-probe to report to a APMIA Agent
 
 # Description
@@ -393,22 +393,13 @@ calypso/php_probe_implant                       latest                     d2900
 
 ### Finding the APMIA PHP Image
 
-Log in into your DX APM SaaS environment and go into the **Agents** section.   
-![doc_images/Menu_Agent.png](doc_images/Menu_Agent.png)
-   
-In the Agents section, select the **Download Agent** tab.   
-![doc_images/Download_Agent_location.png](doc_images/Download_Agent_location.png)   
-   
-Find and select the **PHP** Agent to be downloaded.
-![doc_images/PHP_Select.png](doc_images/PHP_Select.png)
+1. Log in into your DX APM SaaS environment and go into the **Agents** section.   
+2. In the Agents section, select the **Download Agent** tab.   
+3. Find and select the **PHP** Agent to be downloaded.   
+4. Make sure to select the **Command Line Download** on the top left   
+5. Finally, check the Command line download content, and select only the URL to download the PHP APMIA Package.   
+![doc_images/PHP_PRobe_download-2021-04-13_10.02.57.gif](doc_images/PHP_PRobe_download-2021-04-13_10.02.57.gif)
 
-Make sure to select the **Command Line Download** on the top left
-![doc_images/CLI_Select.png](doc_images/CLI_Select.png)   
-   
-Finally, check the Command line download content, and select only the URL to download the PHP APMIA Package.   
-![doc_images/Download_CLI_link.png](doc_images/Download_CLI_link.png)
-
-This URL
 
 # Manual Changelog
 ```
