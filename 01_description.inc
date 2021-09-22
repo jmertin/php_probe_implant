@@ -176,7 +176,7 @@ php-prob-vol is not deployed, the application will not be executed.
 
 The Environment will provide various configuration options.   
 Make sure to set PHP_DEPLOY=true, or else the script will act as if it was not called.   
-Very important is th
+Very important is:
 ```
     environment:
       - PHP_DEPLOY=true
@@ -295,7 +295,7 @@ root           1  0.0  0.0   4624   808 ?        Ss   14:16   0:00 bin/bash ./AP
 
 Due to legal restrictions, the probe itself cannot be distributed through a docker image.
 However, anyone having access to a DX APM SaaS environment can build one himself.
-Launch once the **build_image.sh** script. it will create a configuration file template you will need to enter the 
+Launch once the **build_image.sh** script. it will create a configuration file template you will need to enter the image download link (See animated GIF at end of the document for details). 
 
 ```
 $ ./build_image.sh 
