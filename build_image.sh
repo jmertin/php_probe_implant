@@ -100,6 +100,4 @@ if [ "$Build" = "y" ]
 	   echo "*** Pushing image to registry" 
 	   docker push ${DOCKER_REGISTRY}/bcp/$FileBase:$PHPMONITVER
        fi
-
-       
 fi
